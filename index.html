@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Motor Inteligente de Sugestões de Apostas</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: #e5e7eb;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1,
+        h2 {
+            text-align: center;
+        }
+
+        .container {
+            max-width: 950px;
+            margin: auto;
+            background: #020617;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .box {
+            background: #020617;
+            border: 1px solid #1e293b;
+            padding: 15px;
+            border-radius: 6px;
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        input {
+            width: 100%;
+            padding: 6px;
+            margin-top: 4px;
+            background: #020617;
+            border: 1px solid #334155;
+            color: #e5e7eb;
+            border-radius: 4px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #2563eb;
+            border: none;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            background: #020617;
+            border-left: 5px solid #38bdf8;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+
+        .melhor {
+            border-left-color: #f97316;
+            background: #1e293b;
+            font-size: 17px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>⚽ Motor Inteligente de Sugestões</h1>
+
+    <div class="container">
+
+        <div class="grid">
+            <div class="box">
+                <h2>Probabilidades</h2>
+
+                <label>Over 2.5 (%)</label>
+                <input type="number" id="over25" value="32">
+
+                <label>Under 2.5 (%)</label>
+                <input type="number" id="under25" value="68">
+
+                <label>BTTS Sim (%)</label>
+                <input type="number" id="bttsSim" value="35.4">
+
+                <label>BTTS Não (%)</label>
+                <input type="number" id="bttsNao" value="64.6">
+            </div>
+
+            <div class="box">
+                <h2>Placares mais prováveis</h2>
+
+                <label>0x1 (%)</label>
+                <input type="number" id="p01" value="18.3">
+
+                <label>0x0 (%)</label>
+                <input type="number" id="p00" value="13.7">
+
+                <label>0x2 (%)</label>
+                <input type="number" id="p02" value="12.2">
+
+                <label>1x1 (%)</label>
+                <input type="number" id="p11" value="12">
+
+                <label>1x0 (%)</label>
+                <input type="number" id="p10" value="9">
+
+                <label>1x2 (%)</label>
+                <input type="number" id="p12" value="8">
+            </div>
+        </div>
+
+        <button onclick="gerarSugestoes()">Gerar Sugestões</button>
+
+        <h2>📌 Sugestões de Aposta (ordenadas)</h2>
+        <ul id="resultado"></ul>
+
+    </div>
+
+    <script>
+        function gerarSugestoes() {
+
+            const dados = {
+                over25: +over25.value / 100,
+                under25: +under25.value / 100,
+                bttsSim: +bttsSim.value / 100,
+                bttsNao: +bttsNao.value / 100,
+                placares: [
+                    { placar: "0x1", prob: +p01.value / 100 },
+                    { placar: "0x0", prob: +p00.value / 100 },
+                    { placar: "0x2", prob: +p02.value / 100 },
+                    { placar: "1x1", prob: +p11.value / 100 },
+                    { placar: "1x0", prob: +p10.value / 100 },
+                    { placar: "1x2", prob: +p12.value / 100 }
+                ]
+            };
+
+            const lista = document.getElementById("resultado");
+            lista.innerHTML = "";
+
+            let casa = 0, fora = 0, empate = 0, golsBaixos = 0;
+
+            dados.placares.forEach(p => {
+                const [a, b] = p.placar.split("x").map(Number);
+                if (a > b) casa += p.prob;
+                else if (b > a) fora += p.prob;
+                else empate += p.prob;
+                if (a + b <= 2) golsBaixos += p.prob;
+            });
+
+            const sugestoes = [
+                {
+                    txt: "Under 2.5 gols",
+                    prob: dados.under25
+                },
+                {
+                    txt: "Ambos NÃO marcam",
+                    prob: dados.bttsNao
+                },
+                {
+                    txt: "Time B vence ou empata (X2)",
+                    prob: fora + empate
+                },
+                {
+                    txt: "Time B vence ou empata + Under 3.5 gols",
+                    prob: (fora + empate) * 0.6 + dados.under25 * 0.4
+                },
+                {
+                    txt: "Empate + Under 2.5 gols",
+                    prob: empate * 0.5 + dados.under25 * 0.5
+                },
+                {
+                    txt: "Jogo com poucos gols (até 2)",
+                    prob: golsBaixos
+                }
+            ];
+
+            const melhor = sugestoes.reduce((a, b) => b.prob > a.prob ? b : a);
+
+            sugestoes
+                .sort((a, b) => b.prob - a.prob)
+                .forEach(s => {
+                    const li = document.createElement("li");
+                    const pct = (s.prob * 100).toFixed(1);
+
+                    li.textContent = `${s.txt} — Probabilidade estimada: ${pct}%`;
+
+                    if (s === melhor) {
+                        li.classList.add("melhor");
+                        li.innerHTML = `🔥 <strong>${li.textContent}</strong>`;
+                    }
+
+                    lista.appendChild(li);
+                });
+        }
+    </script>
+
+</body>
+
+</html>
