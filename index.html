@@ -3,15 +3,22 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Motor Inteligente de Sugestões de Apostas</title>
+    <title>⚽ Motor Estatístico de Apostas</title>
 
     <style>
         body {
             font-family: Arial, sans-serif;
             background: #0f172a;
             color: #e5e7eb;
-            margin: 0;
             padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: auto;
+            background: #020617;
+            padding: 20px;
+            border-radius: 8px;
         }
 
         h1,
@@ -19,54 +26,50 @@
             text-align: center;
         }
 
-        .container {
-            max-width: 950px;
-            margin: auto;
-            background: #020617;
-            padding: 20px;
-            border-radius: 8px;
-        }
-
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
         }
 
         .box {
-            background: #020617;
             border: 1px solid #1e293b;
             padding: 15px;
             border-radius: 6px;
         }
 
         label {
-            display: block;
             font-size: 14px;
+            display: block;
             margin-top: 8px;
         }
 
-        input {
+        input,
+        textarea {
             width: 100%;
-            padding: 6px;
+            padding: 8px;
             margin-top: 4px;
             background: #020617;
             border: 1px solid #334155;
             color: #e5e7eb;
             border-radius: 4px;
+            font-family: monospace;
+        }
+
+        textarea {
+            resize: vertical;
         }
 
         button {
             width: 100%;
             padding: 12px;
+            margin-top: 20px;
             background: #2563eb;
             border: none;
-            color: #fff;
+            color: white;
             font-size: 16px;
             cursor: pointer;
             border-radius: 6px;
-            margin-top: 10px;
         }
 
         button:hover {
@@ -91,53 +94,64 @@
             background: #1e293b;
             font-size: 17px;
         }
+
+        .info {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-top: 6px;
+        }
     </style>
 </head>
 
 <body>
 
-    <h1>⚽ Motor Inteligente de Sugestões</h1>
+    <h1>⚽ Motor Estatístico de Apostas</h1>
 
     <div class="container">
 
         <div class="grid">
+
+            <!-- DADOS REAIS -->
             <div class="box">
-                <h2>Probabilidades</h2>
+                <h2>Probabilidades reais (últimos jogos)</h2>
 
                 <label>Over 2.5 (%)</label>
-                <input type="number" id="over25" value="32">
+                <input id="over25" type="number" step="0.1">
 
                 <label>Under 2.5 (%)</label>
-                <input type="number" id="under25" value="68">
+                <input id="under25" type="number" step="0.1">
 
                 <label>BTTS Sim (%)</label>
-                <input type="number" id="bttsSim" value="35.4">
+                <input id="bttsSim" type="number" step="0.1">
 
                 <label>BTTS Não (%)</label>
-                <input type="number" id="bttsNao" value="64.6">
+                <input id="bttsNao" type="number" step="0.1">
+
+                <p class="info">
+                    Esses dados entram no cálculo com peso.<br>
+                    Representam tendência real recente.
+                </p>
             </div>
 
+            <!-- PLACARES DINÂMICOS -->
             <div class="box">
-                <h2>Placares mais prováveis</h2>
+                <h2>Placares prováveis (dinâmico)</h2>
 
-                <label>0x1 (%)</label>
-                <input type="number" id="p01" value="18.3">
+                <p class="info">
+                    Formato: placar=probabilidade (%)<br>
+                    Exemplo: 1x0=12.5
+                </p>
 
-                <label>0x0 (%)</label>
-                <input type="number" id="p00" value="13.7">
-
-                <label>0x2 (%)</label>
-                <input type="number" id="p02" value="12.2">
-
-                <label>1x1 (%)</label>
-                <input type="number" id="p11" value="12">
-
-                <label>1x0 (%)</label>
-                <input type="number" id="p10" value="9">
-
-                <label>1x2 (%)</label>
-                <input type="number" id="p12" value="8">
+                <textarea id="placares" rows="10">
+0x0=6.9
+1x1=11.9
+1x0=11.1
+2x1=9.5
+2x0=8.9
+0x1=7.4
+</textarea>
             </div>
+
         </div>
 
         <button onclick="gerarSugestoes()">Gerar Sugestões</button>
@@ -148,80 +162,105 @@
     </div>
 
     <script>
-        function gerarSugestoes() {
+        // ============================
+        // CONFIGURAÇÃO DE PESOS
+        // ============================
+        const PESO_MODELO = 0.65; // placares
+        const PESO_REAL = 0.35; // dados históricos
 
-            const dados = {
-                over25: +over25.value / 100,
-                under25: +under25.value / 100,
-                bttsSim: +bttsSim.value / 100,
-                bttsNao: +bttsNao.value / 100,
-                placares: [
-                    { placar: "0x1", prob: +p01.value / 100 },
-                    { placar: "0x0", prob: +p00.value / 100 },
-                    { placar: "0x2", prob: +p02.value / 100 },
-                    { placar: "1x1", prob: +p11.value / 100 },
-                    { placar: "1x0", prob: +p10.value / 100 },
-                    { placar: "1x2", prob: +p12.value / 100 }
-                ]
-            };
+        // ============================
+        // LEITURA DOS PLACARES
+        // ============================
+        function lerPlacares(texto) {
+            const linhas = texto.split("\n");
+            const dados = [];
 
-            const lista = document.getElementById("resultado");
-            lista.innerHTML = "";
+            linhas.forEach(l => {
+                l = l.trim();
+                if (!l || !l.includes("=")) return;
 
-            let casa = 0, fora = 0, empate = 0, golsBaixos = 0;
+                const [placar, valor] = l.split("=");
+                const prob = parseFloat(valor.replace(",", "."));
 
-            dados.placares.forEach(p => {
-                const [a, b] = p.placar.split("x").map(Number);
-                if (a > b) casa += p.prob;
-                else if (b > a) fora += p.prob;
-                else empate += p.prob;
-                if (a + b <= 2) golsBaixos += p.prob;
+                if (!placar.includes("x") || isNaN(prob)) return;
+
+                dados.push({ placar, prob });
             });
 
-            const sugestoes = [
-                {
-                    txt: "Under 2.5 gols",
-                    prob: dados.under25
-                },
-                {
-                    txt: "Ambos NÃO marcam",
-                    prob: dados.bttsNao
-                },
-                {
-                    txt: "Time B vence ou empata (X2)",
-                    prob: fora + empate
-                },
-                {
-                    txt: "Time B vence ou empata + Under 3.5 gols",
-                    prob: (fora + empate) * 0.6 + dados.under25 * 0.4
-                },
-                {
-                    txt: "Empate + Under 2.5 gols",
-                    prob: empate * 0.5 + dados.under25 * 0.5
-                },
-                {
-                    txt: "Jogo com poucos gols (até 2)",
-                    prob: golsBaixos
-                }
+            const soma = dados.reduce((s, d) => s + d.prob, 0);
+            if (soma === 0) return [];
+
+            return dados.map(d => ({
+                placar: d.placar,
+                prob: d.prob / soma
+            }));
+        }
+
+        // ============================
+        // MOTOR ESTATÍSTICO HÍBRIDO
+        // ============================
+        function gerarSugestoes() {
+
+            const placares = lerPlacares(
+                document.getElementById("placares").value
+            );
+            if (!placares.length) return;
+
+            // Dados reais
+            const realOver = (+over25.value || 0) / 100;
+            const realUnder = (+under25.value || 0) / 100;
+            const realBttsS = (+bttsSim.value || 0) / 100;
+            const realBttsN = (+bttsNao.value || 0) / 100;
+
+            let A = 0, B = 0, E = 0;
+            let under = 0, over = 0;
+            let bttsS = 0, bttsN = 0;
+            let poucos = 0;
+
+            placares.forEach(p => {
+                const [x, y] = p.placar.split("x").map(Number);
+
+                if (x > y) A += p.prob;
+                else if (y > x) B += p.prob;
+                else E += p.prob;
+
+                if (x + y < 3) under += p.prob;
+                else over += p.prob;
+
+                if (x > 0 && y > 0) bttsS += p.prob;
+                else bttsN += p.prob;
+
+                if (x + y <= 2) poucos += p.prob;
+            });
+
+            // Combinação ponderada
+            const underFinal = under * PESO_MODELO + realUnder * PESO_REAL;
+            const overFinal = over * PESO_MODELO + realOver * PESO_REAL;
+            const bttsSFinal = bttsS * PESO_MODELO + realBttsS * PESO_REAL;
+            const bttsNFinal = bttsN * PESO_MODELO + realBttsN * PESO_REAL;
+
+            const apostas = [
+                { txt: "Vitória Time A", prob: A },
+                { txt: "Vitória Time B", prob: B },
+                { txt: "Empate", prob: E },
+                { txt: "Under 2.5 gols", prob: underFinal },
+                { txt: "Over 2.5 gols", prob: overFinal },
+                { txt: "Ambos marcam — SIM", prob: bttsSFinal },
+                { txt: "Ambos marcam — NÃO", prob: bttsNFinal },
+                { txt: "Poucos gols (≤2)", prob: poucos }
             ];
 
-            const melhor = sugestoes.reduce((a, b) => b.prob > a.prob ? b : a);
+            apostas.sort((a, b) => b.prob - a.prob);
 
-            sugestoes
-                .sort((a, b) => b.prob - a.prob)
-                .forEach(s => {
-                    const li = document.createElement("li");
-                    const pct = (s.prob * 100).toFixed(1);
+            const ul = document.getElementById("resultado");
+            ul.innerHTML = "";
 
-                    li.textContent = `${s.txt} — Probabilidade estimada: ${pct}%`;
-
-                    if (s === melhor) {
-                        li.classList.add("melhor");
-                        li.innerHTML = `🔥 <strong>${li.textContent}</strong>`;
-                    }
-
-                    lista.appendChild(li);
-                });
+            apostas.forEach((a, i) => {
+                const li = document.createElement("li");
+                li.textContent = `${a.txt} — ${(a.prob * 100).toFixed(1)}%`;
+                if (i === 0) li.classList.add("melhor");
+                ul.appendChild(li);
+            });
         }
     </script>
 
